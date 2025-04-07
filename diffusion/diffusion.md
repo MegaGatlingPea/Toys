@@ -57,3 +57,38 @@ $$
 z = \mu_\phi(x) + \sigma_\phi(x) \odot\epsilon, \epsilon \sim \mathcal{N}(\epsilon;0,\mathbf{I})
 $$
 这样子我们可以把随机性嫁接到$\epsilon$上，从而通过反向传播实现对编码器参数的优化。
+
+## Hierarchical Variational AutoEncoder (Markov Chain)
+
+说白了就是在$\text{Variational AutoEncoder}$的基础上加了多层$\text{latent variable z}$，然后一般研究隐变量之间传递具有马尔可夫性质的过程，缩写为$\text{MHVAE}$，即$\text{Markov Hierarchical Variational AutoEncoder}$。这样子我们把$\text{MHVAE}$的联合概率分布以及后验分布表示为
+
+$$
+\tag{5}
+p(x,z_1,z_2, ..., z_T) \equiv p(x,z_{1:T}) = p_\theta(z_T) p_\theta(x|z_1) \prod_{t=2}^{T} p_\theta(z_{t-1}|z_{t})
+$$
+$$
+\tag{6}
+q_\phi(z_1,z_2, ..., z_T|x) \equiv q_\phi(z_1|x) \prod_{t=2}^{T} q_\phi(z_{t}|z_{t-1})
+$$
+
+现在我们可以重新推一下(2)，这次可以尝试使用一下琴生不等式来推$\text{ELBO}$，过程相对简单，然后把(5)(6)都代入推导得到的$\text{ELBO}$：
+$$
+\begin{aligned}
+\tag{7}
+\ln p(x) &= \ln \int p(x,z_{1:T}) \mathrm{d} z_{1:T} \\
+&= \ln \int p(x,z_{1:T}) \frac{q_\phi(z_{1:T}|x)}{q_\phi(z_{1:T}|x)}\mathrm{d} z_{1:T} \\
+&= \ln \mathbb{E}q_\phi(z_{1:T}|x)\left[\frac{p(x,z_{1:T})}{q_\phi(z_{1:T}|x)}\right] \\
+&\geq \mathbb{E}_{q_\phi(z_{1:T}|x)}\left[\ln\frac{p(x,z_{1:T})}{q_\phi(z_{1:T}|x)}\right] \\
+&= \mathbb{E}_{q_\phi(z_{1:T}|x)}\left[\ln\frac{p_\theta(z_T)p_\theta(x|z_1)\prod_{t=2}^Tp_\theta(z_{t-1}|z_t)}{q_\phi(z_1|x)\prod_{t=2}^Tq_\phi(z_t|z_{t-1})}\right]
+\end{aligned}
+$$
+
+最后这一项或许在推Diffusion的时候能进一步分解并来点作用！
+
+## Variational Diffusion Models
+
+其实和MHVAE非常的像！只需要满足如下的基本条件：
+
+- 潜在维度与数据维度完全相等
+- 每个时间步的潜在编码器结构不是通过学习获得的，而是预先定义为线性高斯模型。换句话说，它是以上一时间步的输出为中心的高斯分布
+- 潜像编码器的高斯参数随时间变化，以至于最后时间步T的隐变量z_T分布是标准高斯分布
