@@ -220,13 +220,13 @@ class GatedGCN(nn.Module):
 
 #==============================================
 class GenScore_GGCN(nn.Module):
-	def __init__(self, args):
+	def __init__(self):
 		super(GenScore_GGCN, self).__init__()
-		self.in_channels=args.model.architecture.hidden_dim0
-		self.hidden_dim=args.model.architecture.hidden_dim
-		self.n_gaussians=args.model.architecture.n_gaussians
-		self.dropout_rate=args.model.architecture.dropout_rate
-		self.dist_threhold=args.model.architecture.dist_threhold
+		self.in_channels=128
+		self.hidden_dim=128
+		self.n_gaussians=10
+		self.dropout_rate=0.15
+		self.dist_threhold=7.0
 		self.ligand_model = GatedGCN(in_channels=41, 
                                 edge_features=10, 
                                 num_hidden_channels=self.in_channels, 
@@ -255,11 +255,11 @@ class GenScore_GGCN(nn.Module):
 		self.bond_types = nn.Linear(self.in_channels*2, 4)
 		
 		#self.dist_threhold = self.dist_threhold	
-		self.device = args.experiment.device
+		self.device = 'cpu'
         
-		self.mdn_weight = args.model.loss_weights.mdn
-		self.affi_weight = args.model.loss_weights.affi
-		self.aux_weight = args.model.loss_weights.aux
+		self.mdn_weight = 1.0
+		self.affi_weight = 0.0
+		self.aux_weight = 0.001
             
 	def net_forward(self, data_ligand, data_target):
 		
