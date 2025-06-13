@@ -226,7 +226,7 @@ class GenScore_GGCN(nn.Module):
 		self.hidden_dim=128
 		self.n_gaussians=10
 		self.dropout_rate=0.15
-		self.dist_threhold=7.0
+		self.dist_threshold=7.0
 		self.ligand_model = GatedGCN(in_channels=41, 
                                 edge_features=10, 
                                 num_hidden_channels=self.in_channels, 
@@ -254,7 +254,7 @@ class GenScore_GGCN(nn.Module):
 		self.atom_types = nn.Linear(self.in_channels, 17)
 		self.bond_types = nn.Linear(self.in_channels*2, 4)
 		
-		#self.dist_threhold = self.dist_threhold	
+		#self.dist_threshold = self.dist_threshold	
 		self.device = 'cpu'
         
 		self.mdn_weight = 1.0
@@ -311,9 +311,9 @@ class GenScore_GGCN(nn.Module):
 		dist = self.compute_euclidean_distances_matrix(h_l_pos, h_t_pos.view(B,-1,3))[C_mask]
 		return pi, sigma, mu, dist.unsqueeze(1).detach(), atom_types, bond_types, C_batch
 
-	def forward(self,task,dist_threhold=None):
-		if dist_threhold is None:
-			dist_threhold = self.dist_threhold
+	def forward(self,task,dist_threshold=None):
+		if dist_threshold is None:
+			dist_threshold = self.dist_threshold
 		pdb_ids = task["pdb_ids"];ligs = task["ligs"];prots = task["prots"];labels = task["labels"]
 		# Use deepcopy to prevent inplace modification issues with autograd
 		#ligs = copy.deepcopy(ligs);prots = copy.deepcopy(prots);labels = copy.deepcopy(labels)
@@ -322,7 +322,7 @@ class GenScore_GGCN(nn.Module):
 		bond_labels = torch.argmax(ligs.edge_attr[:,:4],dim=1,keepdim=False)
 		pi, sigma, mu, dist, atom_types, bond_types, batch = self.net_forward(ligs,prots)
 		mdn, prob = mdn_loss_fn(pi, sigma, mu, dist)
-		mdn = mdn[torch.where(dist <= dist_threhold)[0]]
+		mdn = mdn[torch.where(dist <= dist_threshold)[0]]
 		mdn = mdn.mean()
 		batch = batch.to(self.device)
 		y = scatter_add(prob, batch, dim=0, dim_size=batch.unique().size(0))
