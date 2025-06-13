@@ -77,7 +77,7 @@ MAML 原论文中多次出现名词 task，模型的训练过程都是围绕 tas
 
 假设这样一个场景：我们需要利用 MAML 训练一个数学模型模型 $M_{finetune}$，目的是对未知标签的图片做分类，我们要预测的类别包括 $P_1 \sim P_5$（每类5个已标注样本用于训练，另外每类有15个已标注样本用于测试）。我们的训练数据包括另外10个类别的图片 $C_1 \sim C_{10}$（每类30个已标注样本），用于帮助训练元学习模型 $M_{meta}$。实验设置为5-way 5-shot 15-query。
 
-我们的具体训练过程大致是：MAML首先利用 $C_1 \sim C_{10}$ 的数据集训练元模型$M_{meta}$，再在$P_1 \sim P_5$的数据集上微调(finetune) 得到最终的模型 $M_{finetune}$。此时，$C_1 \sim C_{10}$即 meta-train classes，$C_1 \sim C_{10}$包含的共计300个样本，即 $D_{meta-train}$，是用于训练 $M_{meta}$ 的数据集。与之相对的，$P_1 \sim P_5$即meta-test classes，$P_1 \sim P_5$包含的共计100个样本，即 $D_{meta-test}$，是用于训练和测试 $M_{fine-tune}$ 的数据集。
+我们的具体训练过程大致是：MAML首先利用 $C_1 \sim C_{10}$ 的数据集训练元模型 $M_{meta}$，再在 $P_1 \sim P_5$ 的数据集上微调(finetune) 得到最终的模型 $M_{finetune}$。此时，$C_1 \sim C_{10}$ 即 meta-train classes，$C_1 \sim C_{10}$ 包含的共计300个样本，即 $D_{meta-train}$，是用于训练 $M_{meta}$ 的数据集。与之相对的，$P_1 \sim P_5$ 即meta-test classes，$P_1 \sim P_5$包含的共计100个样本，即 $D_{meta-test}$，是用于训练和测试 $M_{fine-tune}$ 的数据集。
 
 根据 5-way 5-shot 15-query 的实验设置，我们在训练 $M_{meta}$ 阶段，从 $C_1 \sim C_{10}$ 中随机取5个类别，每个类别再随机取20个已标注样本，组成一个task $\mathcal{T}$。其中的5个已标注样本称为 $\mathcal{T}$ 的 support set，另外15个样本称为 $\mathcal{T}$ 的query set。这个task $\mathcal{T}$，就相当于普通深度学习模型训练过程中的一条训练数据。那我们肯定要组成一个batch，才能做随机梯度下降SGD, 因此我们反复在训练数据分布中抽取若干个这样的task $\mathcal{T}$，组成一个batch。在训练 $M_{finetune}$ 阶段，task、support set、query set的含义与训练 $M_{meta}$ 阶段均相同。
 
@@ -92,29 +92,29 @@ MAML的核心算法可以用以下伪代码表示：
 
 1: randomly initialize $\theta$  
 2: **while** not done **do**  
-3: &nbsp;&nbsp;&nbsp;&nbsp;Sample batch of tasks $\mathcal{T}_i \sim p(\mathcal{T})$  
-4: &nbsp;&nbsp;&nbsp;&nbsp;**for all** $\mathcal{T}_i$ **do**  
-5: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evaluate $\nabla_\theta \mathcal{L}_{\mathcal{T}_i}(f_\theta)$ with respect to K examples  
-6: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Compute adapted parameters with gradient descent: $\theta'_i = \theta - \alpha\nabla_\theta \mathcal{L}_{\mathcal{T}_i}(f_\theta)$  
-7: &nbsp;&nbsp;&nbsp;&nbsp;**end for**  
-8: &nbsp;&nbsp;&nbsp;&nbsp;Update $\theta \leftarrow \theta - \beta\nabla_\theta \sum_{\mathcal{T}_i \sim p(\mathcal{T})} \mathcal{L}_{\mathcal{T}_i}(f_{\theta'_i})$  
+3: &nbsp;&nbsp;&nbsp;&nbsp; Sample batch of tasks $\mathcal{T}_i \sim p(\mathcal{T})$  
+4: &nbsp;&nbsp;&nbsp;&nbsp; **for all** $\mathcal{T}_i$ **do**  
+5: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Evaluate $\nabla_\theta \mathcal{L}_{\mathcal{T}_i}(f_\theta)$ with respect to K examples  
+6: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Compute adapted parameters with gradient descent: $\theta'_i = \theta - \alpha\nabla_\theta \mathcal{L}_{\mathcal{T}_i}(f_\theta)$  
+7: &nbsp;&nbsp;&nbsp;&nbsp; **end for**  
+8: &nbsp;&nbsp;&nbsp;&nbsp; Update $\theta \leftarrow \theta - \beta\nabla_\theta \sum_{\mathcal{T}_i \sim p(\mathcal{T})} \mathcal{L}_{\mathcal{T}_i}(f_{\theta'_i})$  
 9: **end while**
 
 该算法的核心思想是通过两层优化结构来实现元学习：
 - **内层优化**（步骤5-6）：对每个任务进行快速适应，通过少数几个梯度步骤获得任务特定参数
 - **外层优化**（步骤8）：更新元参数，使得模型能够在新任务上快速适应并取得良好性能
 
-其变体 MAML++ 主要改进点在于开放了内循环的可学习学习率(learnable inner loop learning rate), 即在算法第**8**步的时候根据元梯度再Update一下内循环学习率$\beta$,有助于模型的快速收敛.
+其变体 MAML++ 主要改进点在于开放了内循环的可学习学习率(learnable inner loop learning rate), 即在算法第**8**步的时候根据元梯度再Update一下内循环学习率 $\beta$, 有助于模型的快速收敛.
 
-值得一提,这里展示的算法其实是做了一阶近似的 FOMAML(First-Order MAML),具体的近似位置见下数学推导.
+值得一提,这里展示的算法其实是做了一阶近似的 FOMAML(First-Order MAML), 具体的近似位置见下数学推导.
 
 ### 2.3 简单推导
 
 在推导过程中为了区分整体模型和模型中的某个单独参数,我们将整体模型视为一个包含其所有参数的向量,记号和约定见下:
 
-- 元模型使用$\mathbf{\phi}$表示,参与适应的模型使用$\mathbf{\theta}$表示(从元模型适应一步得到),模型共有$n$个参数
-- 模型的第$k$个参数写为下标形式,即$\phi_k$或$\theta_k$,对于第$i$个任务将对应适应后的模型写作上标,即$\mathbf{\theta^i}$
-- 记内循环学习率和外循环学习率分别为$\alpha$和$\beta$,任务$\mathcal{T_i}\sim p(\mathcal{T})$,损失函数$\mathcal{L}$
+- 元模型使用 $\mathbf{\phi}$ 表示,参与适应的模型使用 $\mathbf{\theta}$ 表示(从元模型适应一步得到),模型共有 $n$ 个参数
+- 模型的第$k$个参数写为下标形式,即 $\phi_k$ 或 $\theta_k$,对于第 $i$ 个任务将对应适应后的模型写作上标,即 $\mathbf{\theta^i}$ 
+- 记内循环学习率和外循环学习率分别为 $\alpha$ 和 $\beta$ ,任务 $\mathcal{T_i}\sim p(\mathcal{T})$,损失函数 $\mathcal{L}$ 
 - 本推导假设仅执行一次内循环训练以求简化
   
 从伪代码当中可知,内循环的训练与普通神经网络训练别无二致,可以写为:
@@ -125,8 +125,7 @@ $$
 
 对齐每一个分量后,向量式写开以后可以变为:
 
-$$
-\begin{bmatrix}
+$$\begin{bmatrix}
 \theta_1 \\
 \vdots \\
 \theta_k \\
